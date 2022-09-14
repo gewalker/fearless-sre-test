@@ -16,9 +16,9 @@ type MyEvent struct {
 // The response type will consist of the expiration date for the certificate and boolean flags indicating
 // if the cert is either currently invalid or in need of renewal in the next 14 days
 type MyResponse struct {
-	expiration_date string `json:"expiration_date"`
-	is_valid        bool   `json:is_valid"`
-	needs_renewal   bool   `json:"needs_renewal"`
+	ExpirationDate string `json:"expiration_date"`
+	IsValid        bool   `json:"is_valid"`
+	NeedsRenewal   bool   `json:"needs_renewal"`
 }
 
 // function handler will receive the uri, and return the expiry date and a boolean needs_renewal flag.
@@ -29,7 +29,7 @@ func HandleRequest(ctx context.Context, event MyEvent) (MyResponse, error) {
 		validity = false
 		renewal = true
 	}
-	return MyResponse{expiration_date: edate, is_valid: validity, needs_renewal: renewal}, err
+	return MyResponse{ExpirationDate: edate, IsValid: validity, NeedsRenewal: renewal}, err
 }
 func testURI(uri string) (string, bool, bool, error) {
 	validity := false
