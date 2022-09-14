@@ -4,7 +4,7 @@ resource "aws_lambda_function" "this" {
   s3_bucket = var.s3_bucket_name
   s3_key    = var.s3_key
   // not bothering to break these out into variables because this is a POC
-  handler = "main"
+  handler = var.lambda_name
   runtime = "go1.x"
 
   role = aws_iam_role.this.arn
