@@ -1,2 +1,0 @@
-# fearless-sre-test
-/* Greetings reviewers. I'm dropping in at this point to say that the actual lambda function works fine, tests well, and the terraform code for the lambda, S3 bucket, and such are all working fine. I'm working through the API gateway setup and I want to go ahead and call out the patterns I'm referencing for that since i plan to submit this at or very close to 48hrs after I got it. 
