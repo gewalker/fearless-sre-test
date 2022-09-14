@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -12,36 +13,43 @@ type MyEvent struct {
 	URI string `json:"uri"`
 }
 
-// The response type will consist of the expiration date for the certificate and a bool indicating if the certificate needs renewal
+// The response type will consist of the expiration date for the certificate and boolean flags indicating
+// if the cert is either currently invalid or in need of renewal in the next 14 days
 type MyResponse struct {
 	expiration_date string `json:"expiration_date"`
+	is_valid        bool   `json:is_valid"`
 	needs_renewal   bool   `json:"needs_renewal"`
 }
 
 // function handler will receive the uri, and return the expiry date and a boolean needs_renewal flag.
 func HandleRequest(ctx context.Context, event MyEvent) (MyResponse, error) {
-	edate, renewal, err := testURI(MyEvent.URI)
+	edate, validity, renewal, err := testURI(event.URI)
 	if err != nil {
 		panic("really sort of late to be hitting an error, but patterns is patterns: " + err.Error())
 	}
-	return MyResponse{expiration_date: edate, needs_renewal: renewal}, nil
+	return MyResponse{expiration_date: edate, is_valid: validity, needs_renewal: renewal}, nil
 }
-func testURI(uri string) (string, bool, error) {
-	/* Temporarily making this a no-op
-	// Attempt to perform a tls handshake.
-	conn, err := tls.Dial("tcp", "gewalker.net:443", nil)
+func testURI(uri string) (string, bool, bool, error) {
+	validity := false
+	renew_soon := false
+	// Attempt to perform a tls handshake. failure here weeds out bad certs, name mismatches and self-signed certs
+	// there are a lot of additional tls jiggery pokery we could get up to here including geolocation fencing, etc. etc.
+	conn, err := tls.Dial("tcp", uri, nil)
 	if err != nil {
-		// Whoops! no point in looking at the expiration date of an invalid cert
-		// replace panic here with something more useful
-		panic("Server doesn't support SSL/TLS or invalid cert err: " + err.Error())
+		return time.Now().Format(time.RFC822), validity, renew_soon, err
 	}
 	// this is a minimal "what's my expiration" routine
 	expiry := conn.ConnectionState().PeerCertificates[0].NotAfter
-	fmt.Printf("expires: %v\n", expiry.Format(time.RFC850))
-	*/
-	return time.Now().Format(time.RFC822), true
+	// if the certificate expires after the present we can consider it valid
+	validity = expiry.After(time.Now())
+	// if duration until the expiration date is less than 14d we set the renewal flag true
+	renewal_threshold, _ := time.ParseDuration("14d")
+	if time.Until(expiry) < renewal_threshold {
+		renew_soon = true
+	}
+	return expiry.Format(time.RFC822), validity, renew_soon, nil
 }
 
 func main() {
-	lambda.Start(Handle)
+	lambda.Start(HandleRequest)
 }
