@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-// the invocation will send an identifier for the request and the uri to be examined
 type MyEvent struct {
 	URI string `json:"uri"`
 }
@@ -22,23 +21,14 @@ type MyResponse struct {
 }
 
 // function handler will receive the uri, and return the expiry date and a boolean needs_renewal flag.
-func HandleRequest(ctx context.Context, event MyEvent) (MyResponse, error) {
-	edate, validity, renewal, err := testURI(event.URI)
-	if err != nil {
-		edate = time.Now().Format("RFC822")
-		validity = false
-		renewal = true
-	}
-	return MyResponse{ExpirationDate: edate, IsValid: validity, NeedsRenewal: renewal}, err
-}
-func testURI(uri string) (string, bool, bool, error) {
+func HandleLambdaEvent(ctx context.Context, event MyEvent) (MyResponse, error) {
 	validity := false
-	renew_soon := false
+	renew_soon := true
 	// Attempt to perform a tls handshake. failure here weeds out bad certs, name mismatches and self-signed certs
 	// there are a lot of additional tls jiggery pokery we could get up to here including geolocation fencing, etc. etc.
-	conn, err := tls.Dial("tcp", uri, nil)
+	conn, err := tls.Dial("tcp", event.URI, nil)
 	if err != nil {
-		return time.Now().Format(time.RFC822), validity, renew_soon, err
+		return MyResponse{ExpirationDate: time.Now().Format(time.RFC822), IsValid: false, NeedsRenewal: true}, err
 	}
 	// this is a minimal "what's my expiration" routine
 	expiry := conn.ConnectionState().PeerCertificates[0].NotAfter
@@ -49,9 +39,9 @@ func testURI(uri string) (string, bool, bool, error) {
 	if time.Until(expiry) <= renewal_threshold {
 		renew_soon = true
 	}
-	return expiry.Format(time.RFC822), validity, renew_soon, nil
+	return MyResponse{ExpirationDate: expiry.Format(time.RFC822), IsValid: validity, NeedsRenewal: renew_soon}, nil
 }
 
 func main() {
-	lambda.Start(HandleRequest)
+	lambda.Start(HandleLambdaEvent)
 }
