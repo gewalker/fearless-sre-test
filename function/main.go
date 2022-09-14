@@ -25,9 +25,11 @@ type MyResponse struct {
 func HandleRequest(ctx context.Context, event MyEvent) (MyResponse, error) {
 	edate, validity, renewal, err := testURI(event.URI)
 	if err != nil {
-		panic("really sort of late to be hitting an error, but patterns is patterns: " + err.Error())
+		edate = time.Now().Format("RFC822")
+		validity = false
+		renewal = true
 	}
-	return MyResponse{expiration_date: edate, is_valid: validity, needs_renewal: renewal}, nil
+	return MyResponse{expiration_date: edate, is_valid: validity, needs_renewal: renewal}, err
 }
 func testURI(uri string) (string, bool, bool, error) {
 	validity := false
@@ -44,7 +46,7 @@ func testURI(uri string) (string, bool, bool, error) {
 	validity = expiry.After(time.Now())
 	// if duration until the expiration date is less than 14d we set the renewal flag true
 	renewal_threshold, _ := time.ParseDuration("14d")
-	if time.Until(expiry) < renewal_threshold {
+	if time.Until(expiry) <= renewal_threshold {
 		renew_soon = true
 	}
 	return expiry.Format(time.RFC822), validity, renew_soon, nil
